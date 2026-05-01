@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B站直播间监控助手</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- 主容器 -->
+  <div class="container">
+    <!-- 头部 -->
+    <header class="header">
+      <div class="header-title">
+        <img src="icons/icon48.png" alt="Logo" class="logo">
+        <h1>B站直播间监控助手</h1>
+      </div>
+      <div class="header-status" id="monitorStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">未监控</span>
+      </div>
+    </header>
+
+    <!-- 导航标签 -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="monitor">
+        <span class="tab-icon">📺</span>
+        <span>直播监控</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <span class="tab-icon">⚙️</span>
+        <span>设置</span>
+      </button>
+      <button class="tab-btn" data-tab="history">
+        <span class="tab-icon">📋</span>
+        <span>录屏历史</span>
+      </button>
+    </nav>
+
+    <!-- 内容区域 -->
+    <main class="content">
+      <!-- 监控页面 -->
+      <section id="tab-monitor" class="tab-content active">
+        <!-- 添加主播区域 -->
+        <div class="section add-section">
+          <h3 class="section-title">添加主播</h3>
+          <div class="add-form">
+            <div class="input-group">
+              <input type="text" id="roomInput" placeholder="输入直播间ID或链接..." class="room-input">
+              <button id="addBtn" class="btn btn-primary">
+                <span class="btn-icon">+</span>
+                添加
+              </button>
+            </div>
+            <div class="input-hint">
+              支持：纯数字ID、直播间链接、主播主页链接
+            </div>
+          </div>
+        </div>
+
+        <!-- 监控控制 -->
+        <div class="section control-section">
+          <div class="control-row">
+            <button id="startMonitorBtn" class="btn btn-success btn-large">
+              <span class="btn-icon">▶</span>
+              开始监控
+            </button>
+            <button id="stopMonitorBtn" class="btn btn-danger btn-large" style="display: none;">
+              <span class="btn-icon">⏹</span>
+              停止监控
+            </button>
+          </div>
+          <div class="control-info" id="controlInfo">
+            点击"开始监控"启动后台监控
+          </div>
+        </div>
+
+        <!-- 主播列表 -->
+        <div class="section list-section">
+          <div class="list-header">
+            <h3 class="section-title">监控主播列表</h3>
+            <span class="list-count" id="streamerCount">共 0 个</span>
+          </div>
+          <div class="streamer-list" id="streamerList">
+            <div class="empty-state" id="emptyStreamers">
+              <div class="empty-icon">📭</div>
+              <div class="empty-text">暂无监控的主播</div>
+              <div class="empty-hint">在上方输入框添加主播开始监控</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设置页面 -->
+      <section id="tab-settings" class="tab-content">
+        <div class="settings-group">
+          <h3 class="settings-title">监控设置</h3>
+          <div class="setting-item">
+            <label class="setting-label">轮询间隔（秒）</label>
+            <div class="setting-control">
+              <input type="number" id="pollInterval" min="5" max="300" value="10" class="setting-input">
+              <span class="setting-hint">推荐 10-30 秒</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-title">录屏设置</h3>
+          <div class="setting-item">
+            <label class="setting-label">视频画质</label>
+            <div class="setting-control">
+              <select id="videoQuality" class="setting-select">
+                <option value="原画">原画（推荐）</option>
+                <option value="蓝光8M">蓝光8M</option>
+                <option value="蓝光4M">蓝光4M</option>
+                <option value="超清">超清</option>
+                <option value="高清">高清</option>
+                <option value="流畅">流畅</option>
+              </select>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">视频格式</label>
+            <div class="setting-control">
+              <select id="videoFormat" class="setting-select">
+                <option value="mp4">MP4（推荐）</option>
+                <option value="webm">WebM</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-title">通知设置</h3>
+          <div class="setting-item">
+            <label class="setting-label">桌面弹窗通知</label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="enableNotification" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">开播提示音</label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="enableSound" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-title">自动录屏</h3>
+          <div class="setting-item">
+            <label class="setting-label">自动启动录制</label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="enableRecord" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-hint-box">
+            <strong>录制说明：</strong><br>
+            1. 检测到开播后会自动打开直播间页面<br>
+            2. 需要您授权浏览器录制标签页<br>
+            3. 视频将下载到浏览器默认下载目录
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button id="saveSettingsBtn" class="btn btn-primary">
+            <span class="btn-icon">💾</span>
+            保存设置
+          </button>
+          <button id="testNotifyBtn" class="btn btn-secondary">
+            <span class="btn-icon">🔔</span>
+            测试通知
+          </button>
+        </div>
+      </section>
+
+      <!-- 历史页面 -->
+      <section id="tab-history" class="tab-content">
+        <div class="history-header">
+          <h3 class="section-title">录屏历史</h3>
+          <button id="clearHistoryBtn" class="btn btn-danger btn-small">
+            清空历史
+          </button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty-state" id="emptyHistory">
+            <div class="empty-icon">🎬</div>
+            <div class="empty-text">暂无录屏记录</div>
+            <div class="empty-hint">录制完成的视频将显示在这里</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="footer">
+      <span>B站直播间监控助手 v1.0.0</span>
+      <span class="footer-link" id="helpLink">使用说明</span>
+    </footer>
+  </div>
+
+  <!-- 加载遮罩 -->
+  <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">处理中...</div>
+  </div>
+
+  <!-- 提示消息 -->
+  <div class="toast" id="toast">
+    <span id="toastMessage"></span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

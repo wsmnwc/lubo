@@ -1,0 +1,29 @@
+# B站直播间监控自动录屏工具 依赖清单
+# Python版本要求: 3.8+
+
+# 网络请求 - 用于调用B站API
+requests>=2.28.0
+
+# GUI界面 - Python内置，无需安装
+# tkinter (Python内置)
+
+# Windows桌面通知
+win10toast>=0.9
+
+# Windows系统相关功能
+pywin32>=305
+
+# 配置文件管理
+pyyaml>=6.0
+
+# 声音播放
+playsound>=1.2.2
+
+# 可选：用于更好的UI显示
+# pillow>=9.0.0
+
+# 说明：
+# 1. 安装所有依赖: pip install -r requirements.txt
+# 2. FFmpeg需要单独下载并配置到系统PATH
+#    下载地址: https://ffmpeg.org/download.html
+#    Windows版本: 下载ffmpeg-release-essentials.zip，解压后将bin目录添加到系统环境变量PATH

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Offscreen Document</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      visibility: hidden;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <audio id="notificationSound" style="display: none;"></audio>
+  
+  <script>
+    /**
+     * Offscreen文档脚本
+     * 用于播放音频（Manifest V3中Service Worker无法直接播放音频）
+     */
+    
+    console.log('[Offscreen] 文档已加载');
+    
+    // 监听来自后台的消息
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('[Offscreen] 收到消息:', message.type);
+      
+      (async () => {
+        let response = { success: false };
+        
+        try {
+          switch (message.type) {
+            case 'PLAY_SOUND':
+              response = await playSound(message.sound);
+              break;
+          }
+        } catch (error) {
+          console.error('[Offscreen] 处理消息出错:', error);
+          response = { success: false, error: error.message };
+        }
+        
+        sendResponse(response);
+      })();
+      
+      return true;
+    });
+    
+    /**
+     * 播放声音
+     */
+    async function playSound(soundType) {
+      console.log('[Offscreen] 播放声音:', soundType);
+      
+      try {
+        // 创建AudioContext
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 创建简单的提示音
+        await playBeep(audioContext);
+        
+        return { success: true };
+        
+      } catch (error) {
+        console.error('[Offscreen] 播放声音失败:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    /**
+     * 播放蜂鸣声
+     */
+    function playBeep(audioContext) {
+      return new Promise((resolve) => {
+        const now = audioContext.currentTime;
+        
+        // 创建振荡器
+        const oscillator1 = audioContext.createOscillator();
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // 配置频率
+        oscillator1.type = 'sine';
+        oscillator1.frequency.setValueAtTime(880, now);  // A5
+        oscillator1.frequency.setValueAtTime(1100, now + 0.1);  // C6
+        
+        oscillator2.type = 'sine';
+        oscillator2.frequency.setValueAtTime(1100, now + 0.15);  // C6
+        oscillator2.frequency.setValueAtTime(1320, now + 0.25);  // E6
+        
+        // 音量
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        
+        // 连接节点
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // 播放
+        oscillator1.start(now);
+        oscillator1.stop(now + 0.15);
+        
+        oscillator2.start(now + 0.15);
+        oscillator2.stop(now + 0.5);
+        
+        // 播放完成后resolve
+        setTimeout(resolve, 600);
+      });
+    }
+  </script>
+</body>
+</html>
