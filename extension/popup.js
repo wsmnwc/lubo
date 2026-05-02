@@ -523,7 +523,7 @@ function fillConfigToUI() {
   elements.enableNotification.checked = state.config.enableNotification !== false;
   elements.enableSound.checked = state.config.enableSound !== false;
   elements.enableRecord.checked = state.config.enableRecord !== false;
-  elements.autoOpenRecord.checked = state.config.autoOpenRecord === true;
+  elements.autoOpenRecord.checked = state.config.autoOpenRecord !== false;
 }
 
 /**
