@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B站直播间监控录屏助手",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "监控B站直播间开播状态，自动提醒并录制直播内容。支持多主播监控、自动录屏、开播提醒。",
   "permissions": [
     "storage",
@@ -35,7 +35,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["offscreen.html"],
+      "resources": ["offscreen.html", "popup.html"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -12,7 +12,7 @@
     <!-- 头部 -->
     <header class="header">
       <div class="header-title">
-        <img src="icons/icon48.png" alt="Logo" class="logo">
+        <span class="logo-emoji">📺</span>
         <h1>B站直播间监控助手</h1>
       </div>
       <div class="header-status" id="monitorStatus">
@@ -123,9 +123,10 @@
             <label class="setting-label">视频格式</label>
             <div class="setting-control">
               <select id="videoFormat" class="setting-select">
-                <option value="mp4">MP4（推荐）</option>
-                <option value="webm">WebM</option>
+                <option value="webm">WebM（推荐）</option>
+                <option value="mp4">MP4（需转换）</option>
               </select>
+              <span class="setting-hint">浏览器原生仅支持WebM</span>
             </div>
           </div>
         </div>
@@ -155,7 +156,7 @@
         <div class="settings-group">
           <h3 class="settings-title">自动录屏</h3>
           <div class="setting-item">
-            <label class="setting-label">自动启动录制</label>
+            <label class="setting-label">检测开播后自动打开页面</label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="enableRecord" checked>
@@ -163,11 +164,22 @@
               </label>
             </div>
           </div>
+          <div class="setting-item">
+            <label class="setting-label">自动启动录制（需要手动授权）</label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoOpenRecord">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
           <div class="setting-hint-box">
             <strong>录制说明：</strong><br>
             1. 检测到开播后会自动打开直播间页面<br>
-            2. 需要您授权浏览器录制标签页<br>
-            3. 视频将下载到浏览器默认下载目录
+            2. 点击「录制助手」按钮显示控制面板<br>
+            3. 手动点击「开始录制」并授权浏览器<br>
+            4. 请选择「标签页」并勾选「分享音频」<br>
+            5. 视频将下载到浏览器默认下载目录
           </div>
         </div>
 

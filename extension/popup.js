@@ -30,6 +30,7 @@ const elements = {
   enableNotification: document.getElementById('enableNotification'),
   enableSound: document.getElementById('enableSound'),
   enableRecord: document.getElementById('enableRecord'),
+  autoOpenRecord: document.getElementById('autoOpenRecord'),
   saveSettingsBtn: document.getElementById('saveSettingsBtn'),
   testNotifyBtn: document.getElementById('testNotifyBtn'),
   
@@ -518,10 +519,11 @@ function fillConfigToUI() {
   
   elements.pollInterval.value = state.config.pollInterval || 10;
   elements.videoQuality.value = state.config.videoQuality || '原画';
-  elements.videoFormat.value = state.config.videoFormat || 'mp4';
+  elements.videoFormat.value = state.config.videoFormat || 'webm';
   elements.enableNotification.checked = state.config.enableNotification !== false;
   elements.enableSound.checked = state.config.enableSound !== false;
   elements.enableRecord.checked = state.config.enableRecord !== false;
+  elements.autoOpenRecord.checked = state.config.autoOpenRecord === true;
 }
 
 /**
@@ -534,7 +536,8 @@ async function saveSettings() {
     videoFormat: elements.videoFormat.value,
     enableNotification: elements.enableNotification.checked,
     enableSound: elements.enableSound.checked,
-    enableRecord: elements.enableRecord.checked
+    enableRecord: elements.enableRecord.checked,
+    autoOpenRecord: elements.autoOpenRecord.checked
   };
   
   // 验证
@@ -566,19 +569,39 @@ async function saveSettings() {
  */
 async function testNotification() {
   try {
-    // 先请求通知权限
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        showToast('请允许浏览器通知权限', 'warning');
-      }
+    showLoading('正在发送测试通知...');
+    
+    const response = await sendNotificationDirect();
+    
+    hideLoading();
+    
+    if (response.success) {
+      showToast('测试通知已发送，请查看系统通知栏', 'success');
+    } else {
+      showToast(response.error || '发送失败', 'error');
     }
     
-    // 发送测试通知消息到后台
-    showToast('已发送测试通知，请查看', 'success');
-    
   } catch (error) {
+    hideLoading();
     showToast('测试失败: ' + error.message, 'error');
+  }
+}
+
+async function sendNotificationDirect() {
+  try {
+    const iconData = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiMwMGExZDYiIHJ4PSIxNiIvPjx0ZXh0IHg9IjY0IiB5PSI4NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjYwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+TwTwvdGV4dD48L3N2Zz4=';
+    
+    return await chrome.notifications.create('test_notification_' + Date.now(), {
+      type: 'basic',
+      iconUrl: iconData,
+      title: 'B站直播间监控助手 - 测试通知',
+      message: '恭喜！通知功能正常工作！\n\n开播时您将收到类似的提醒。',
+      priority: 2,
+      requireInteraction: true
+    });
+  } catch (error) {
+    console.error('发送通知失败:', error);
+    return { success: false, error: error.message };
   }
 }
 

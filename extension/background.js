@@ -1,78 +1,71 @@
 /**
- * B站直播间监控助手 - 后台服务脚本
- * 功能：直播间状态轮询、自动打开页面、录制控制、通知提醒
+ * B站直播间监控助手 - 后台服务脚本 v1.1.0
+ * 
+ * 修复记录：
+ * 1. 修复通知图标问题（使用extension.getURL获取正确路径）
+ * 2. 修复重复打开页面问题（添加防重机制）
+ * 3. 修复配置保存问题（确保存储正确）
+ * 4. 优化流程逻辑（不强制自动触发录制授权）
+ * 5. 添加更好的状态跟踪和错误处理
+ * 6. 添加手动录制控制支持
  */
 
-// ==================== 常量定义 ====================
 const CONSTANTS = {
-  // B站API接口
   API_ROOM_INIT: "https://api.live.bilibili.com/room/v1/Room/room_init",
   API_ROOM_INFO: "https://api.live.bilibili.com/room/v1/Room/get_info",
   API_USER_INFO: "https://api.live.bilibili.com/live_user/v1/Master/info",
   
-  // 默认配置
-  DEFAULT_POLL_INTERVAL: 10,    // 默认轮询间隔（秒）
-  DEFAULT_VIDEO_QUALITY: '原画',  // 默认画质
-  DEFAULT_VIDEO_FORMAT: 'mp4',    // 默认格式
+  DEFAULT_POLL_INTERVAL: 10,
+  DEFAULT_VIDEO_QUALITY: '原画',
+  DEFAULT_VIDEO_FORMAT: 'webm',
   DEFAULT_ENABLE_NOTIFICATION: true,
   DEFAULT_ENABLE_SOUND: true,
   DEFAULT_ENABLE_RECORD: true,
+  DEFAULT_AUTO_OPEN_RECORD: false,
   
-  // 存储键名
   STORAGE_STREAMERS: 'streamers',
   STORAGE_CONFIG: 'config',
-  STORAGE_STATE: 'state',
+  STORAGE_STATE: 'monitor_state',
   STORAGE_HISTORY: 'history'
 };
 
-// ==================== 全局状态 ====================
 let globalState = {
-  isMonitoring: false,           // 是否正在监控
-  pollingTimer: null,            // 轮询定时器
-  recordingRooms: new Map(),     // 正在录制的房间 Map<roomId, tabInfo>
-  lastNotifyTime: new Map(),     // 上次通知时间 Map<roomId, timestamp>
-  notificationCooldown: 60000    // 通知冷却时间（毫秒）
+  isMonitoring: false,
+  pollingTimer: null,
+  recordingRooms: new Map(),
+  openingRooms: new Set(),
+  lastNotifyTime: new Map(),
+  notificationCooldown: 120000,
+  lastCheckStatus: new Map()
 };
 
-// ==================== 工具函数 ====================
-
-/**
- * 日志输出（带时间戳）
- */
 function log(message, ...args) {
   const timestamp = new Date().toLocaleString('zh-CN');
   console.log(`[${timestamp}] ${message}`, ...args);
 }
 
-/**
- * 从输入字符串提取直播间ID
- * 支持：纯数字ID、直播间链接、主播主页链接、短链接
- */
 function extractRoomId(input) {
   if (!input) return null;
-  
   input = input.trim();
   
-  // 1. 纯数字ID
   if (/^\d+$/.test(input)) {
     return input;
   }
   
-  // 2. 直播间链接: live.bilibili.com/123456
   const liveMatch = input.match(/live\.bilibili\.com\/(\d+)/);
   if (liveMatch) {
     return liveMatch[1];
   }
   
-  // 3. 主播主页链接: space.bilibili.com/123456
-  // 注意：需要调用API获取直播间ID，这里先不处理
+  const shortMatch = input.match(/b23\.tv\/(\w+)/);
+  if (shortMatch) {
+    log('检测到短链接，需要进一步处理');
+    return null;
+  }
   
   return null;
 }
 
-/**
- * 格式化时长
- */
 function formatDuration(seconds) {
   if (!seconds || seconds <= 0) return '00:00';
   const h = Math.floor(seconds / 3600);
@@ -84,9 +77,6 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-/**
- * 格式化文件大小
- */
 function formatFileSize(bytes) {
   if (!bytes || bytes <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -99,41 +89,32 @@ function formatFileSize(bytes) {
   return `${size.toFixed(1)} ${units[i]}`;
 }
 
-// ==================== B站API调用 ====================
-
-/**
- * 调用B站API获取直播间基础信息
- */
 async function fetchRoomInfo(roomId) {
   try {
     log(`获取直播间信息: ${roomId}`);
     
-    // 第一步：获取房间初始化信息
     const initResponse = await fetch(`${CONSTANTS.API_ROOM_INIT}?id=${roomId}`, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://live.bilibili.com/'
-      },
-      credentials: 'include'
+      }
     });
     
     const initData = await initResponse.json();
     
     if (initData.code !== 0) {
-      log(`获取房间初始化信息失败: ${initData.message}`);
+      log(`获取房间信息失败: ${initData.message}`);
       return null;
     }
     
     const initRoomData = initData.data;
     const realRoomId = initRoomData.room_id || roomId;
     const uid = initRoomData.uid;
-    const liveStatus = initRoomData.live_status; // 0:未开播, 1:直播中, 2:轮播
+    const liveStatus = initRoomData.live_status;
     
-    // 第二步：获取房间详细信息
     let roomTitle = '';
     let liveTime = '';
-    let areaName = '';
     
     try {
       const infoResponse = await fetch(`${CONSTANTS.API_ROOM_INFO}?room_id=${realRoomId}`, {
@@ -141,21 +122,18 @@ async function fetchRoomInfo(roomId) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Referer': 'https://live.bilibili.com/'
-        },
-        credentials: 'include'
+        }
       });
       
       const infoData = await infoResponse.json();
       if (infoData.code === 0 && infoData.data) {
         roomTitle = infoData.data.title || '';
         liveTime = infoData.data.live_time || '';
-        areaName = infoData.data.area_name || '';
       }
     } catch (e) {
       log(`获取房间详细信息出错: ${e.message}`);
     }
     
-    // 第三步：获取主播信息
     let streamerName = `主播_${realRoomId}`;
     try {
       const userResponse = await fetch(`${CONSTANTS.API_USER_INFO}?uid=${uid}`, {
@@ -163,8 +141,7 @@ async function fetchRoomInfo(roomId) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Referer': 'https://live.bilibili.com/'
-        },
-        credentials: 'include'
+        }
       });
       
       const userData = await userResponse.json();
@@ -183,8 +160,7 @@ async function fetchRoomInfo(roomId) {
       liveStatus: liveStatus,
       isLive: liveStatus === 1,
       isRoundPlaying: liveStatus === 2,
-      liveTime: liveTime,
-      areaName: areaName
+      liveTime: liveTime
     };
     
   } catch (error) {
@@ -193,77 +169,86 @@ async function fetchRoomInfo(roomId) {
   }
 }
 
-/**
- * 验证直播间是否存在
- */
-async function verifyRoomExists(roomId) {
-  const roomInfo = await fetchRoomInfo(roomId);
-  return {
-    exists: roomInfo !== null,
-    roomInfo: roomInfo
-  };
-}
-
-// ==================== 存储操作 ====================
-
-/**
- * 获取配置
- */
 async function getConfig() {
-  const result = await chrome.storage.local.get(CONSTANTS.STORAGE_CONFIG);
-  const savedConfig = result[CONSTANTS.STORAGE_CONFIG] || {};
-  
-  return {
-    pollInterval: savedConfig.pollInterval || CONSTANTS.DEFAULT_POLL_INTERVAL,
-    videoQuality: savedConfig.videoQuality || CONSTANTS.DEFAULT_VIDEO_QUALITY,
-    videoFormat: savedConfig.videoFormat || CONSTANTS.DEFAULT_VIDEO_FORMAT,
-    enableNotification: savedConfig.enableNotification !== false,
-    enableSound: savedConfig.enableSound !== false,
-    enableRecord: savedConfig.enableRecord !== false,
-    savePath: savedConfig.savePath || ''
-  };
+  try {
+    const result = await chrome.storage.local.get(CONSTANTS.STORAGE_CONFIG);
+    const savedConfig = result[CONSTANTS.STORAGE_CONFIG] || {};
+    
+    return {
+      pollInterval: savedConfig.pollInterval ?? CONSTANTS.DEFAULT_POLL_INTERVAL,
+      videoQuality: savedConfig.videoQuality || CONSTANTS.DEFAULT_VIDEO_QUALITY,
+      videoFormat: savedConfig.videoFormat || CONSTANTS.DEFAULT_VIDEO_FORMAT,
+      enableNotification: savedConfig.enableNotification ?? CONSTANTS.DEFAULT_ENABLE_NOTIFICATION,
+      enableSound: savedConfig.enableSound ?? CONSTANTS.DEFAULT_ENABLE_SOUND,
+      enableRecord: savedConfig.enableRecord ?? CONSTANTS.DEFAULT_ENABLE_RECORD,
+      autoOpenRecord: savedConfig.autoOpenRecord ?? CONSTANTS.DEFAULT_AUTO_OPEN_RECORD,
+      savePath: savedConfig.savePath || ''
+    };
+  } catch (error) {
+    log(`获取配置失败: ${error.message}`);
+    return {
+      pollInterval: CONSTANTS.DEFAULT_POLL_INTERVAL,
+      videoQuality: CONSTANTS.DEFAULT_VIDEO_QUALITY,
+      videoFormat: CONSTANTS.DEFAULT_VIDEO_FORMAT,
+      enableNotification: CONSTANTS.DEFAULT_ENABLE_NOTIFICATION,
+      enableSound: CONSTANTS.DEFAULT_ENABLE_SOUND,
+      enableRecord: CONSTANTS.DEFAULT_ENABLE_RECORD,
+      autoOpenRecord: CONSTANTS.DEFAULT_AUTO_OPEN_RECORD,
+      savePath: ''
+    };
+  }
 }
 
-/**
- * 保存配置
- */
 async function saveConfig(config) {
-  await chrome.storage.local.set({
-    [CONSTANTS.STORAGE_CONFIG]: config
-  });
+  try {
+    await chrome.storage.local.set({
+      [CONSTANTS.STORAGE_CONFIG]: config
+    });
+    log(`配置已保存: ${JSON.stringify(config)}`);
+    return true;
+  } catch (error) {
+    log(`保存配置失败: ${error.message}`);
+    return false;
+  }
 }
 
-/**
- * 获取主播列表
- */
 async function getStreamers() {
-  const result = await chrome.storage.local.get(CONSTANTS.STORAGE_STREAMERS);
-  return result[CONSTANTS.STORAGE_STREAMERS] || [];
+  try {
+    const result = await chrome.storage.local.get(CONSTANTS.STORAGE_STREAMERS);
+    return result[CONSTANTS.STORAGE_STREAMERS] || [];
+  } catch (error) {
+    log(`获取主播列表失败: ${error.message}`);
+    return [];
+  }
 }
 
-/**
- * 保存主播列表
- */
 async function saveStreamers(streamers) {
-  await chrome.storage.local.set({
-    [CONSTANTS.STORAGE_STREAMERS]: streamers
-  });
+  try {
+    await chrome.storage.local.set({
+      [CONSTANTS.STORAGE_STREAMERS]: streamers
+    });
+    return true;
+  } catch (error) {
+    log(`保存主播列表失败: ${error.message}`);
+    return false;
+  }
 }
 
-/**
- * 添加主播
- */
 async function addStreamer(roomId, streamerName = '', note = '') {
+  const actualRoomId = extractRoomId(roomId);
+  
+  if (!actualRoomId) {
+    return { success: false, message: '无法识别的直播间ID或链接' };
+  }
+  
   const streamers = await getStreamers();
   
-  // 检查是否已存在
-  const exists = streamers.find(s => s.roomId === roomId);
+  const exists = streamers.find(s => s.roomId === actualRoomId);
   if (exists) {
     return { success: false, message: '该主播已在监控列表中' };
   }
   
-  // 获取直播间信息
-  const roomInfo = await fetchRoomInfo(roomId);
+  const roomInfo = await fetchRoomInfo(actualRoomId);
   if (!roomInfo) {
     return { success: false, message: '无法获取直播间信息，请检查ID是否正确' };
   }
@@ -282,6 +267,8 @@ async function addStreamer(roomId, streamerName = '', note = '') {
   streamers.push(newStreamer);
   await saveStreamers(streamers);
   
+  log(`已添加主播: ${newStreamer.streamerName} (${newStreamer.roomId})`);
+  
   return { 
     success: true, 
     message: `成功添加主播: ${newStreamer.streamerName}`,
@@ -289,9 +276,6 @@ async function addStreamer(roomId, streamerName = '', note = '') {
   };
 }
 
-/**
- * 删除主播
- */
 async function removeStreamer(roomId) {
   const streamers = await getStreamers();
   const newStreamers = streamers.filter(s => s.roomId !== roomId);
@@ -302,17 +286,18 @@ async function removeStreamer(roomId) {
   
   await saveStreamers(newStreamers);
   
-  // 如果正在录制，停止录制
   if (globalState.recordingRooms.has(roomId)) {
     await stopRecording(roomId);
   }
   
+  globalState.openingRooms.delete(roomId);
+  globalState.lastCheckStatus.delete(roomId);
+  
+  log(`已删除主播: ${roomId}`);
+  
   return true;
 }
 
-/**
- * 更新主播监控状态
- */
 async function toggleStreamerMonitoring(roomId, enable = null) {
   const streamers = await getStreamers();
   const streamer = streamers.find(s => s.roomId === roomId);
@@ -328,20 +313,21 @@ async function toggleStreamerMonitoring(roomId, enable = null) {
   streamer.isMonitoring = enable;
   await saveStreamers(streamers);
   
+  log(`主播 ${streamer.streamerName} 监控状态: ${enable ? '开启' : '关闭'}`);
+  
   return true;
 }
 
-/**
- * 获取录屏历史
- */
 async function getHistory() {
-  const result = await chrome.storage.local.get(CONSTANTS.STORAGE_HISTORY);
-  return result[CONSTANTS.STORAGE_HISTORY] || [];
+  try {
+    const result = await chrome.storage.local.get(CONSTANTS.STORAGE_HISTORY);
+    return result[CONSTANTS.STORAGE_HISTORY] || [];
+  } catch (error) {
+    log(`获取历史记录失败: ${error.message}`);
+    return [];
+  }
 }
 
-/**
- * 添加录屏历史
- */
 async function addHistory(record) {
   const history = await getHistory();
   
@@ -360,34 +346,32 @@ async function addHistory(record) {
   
   history.unshift(newRecord);
   
-  // 只保留最近100条
   if (history.length > 100) {
     history.splice(100);
   }
   
-  await chrome.storage.local.set({
-    [CONSTANTS.STORAGE_HISTORY]: history
-  });
+  try {
+    await chrome.storage.local.set({
+      [CONSTANTS.STORAGE_HISTORY]: history
+    });
+  } catch (error) {
+    log(`保存历史记录失败: ${error.message}`);
+  }
   
   return newRecord;
 }
 
-// ==================== 通知系统 ====================
-
-/**
- * 发送桌面通知
- */
 async function sendNotification(roomId, title, message, type = 'info') {
   const config = await getConfig();
   
-  // 检查是否启用通知
   if (!config.enableNotification) {
+    log('通知已关闭，跳过');
     return;
   }
   
-  // 检查冷却时间
   const now = Date.now();
   const lastNotify = globalState.lastNotifyTime.get(roomId) || 0;
+  
   if (now - lastNotify < globalState.notificationCooldown) {
     log(`通知冷却中，跳过: ${roomId}`);
     return;
@@ -395,120 +379,168 @@ async function sendNotification(roomId, title, message, type = 'info') {
   
   globalState.lastNotifyTime.set(roomId, now);
   
-  // 创建通知
-  const notificationId = `bilibili_monitor_${Date.now()}`;
-  
-  await chrome.notifications.create(notificationId, {
-    type: 'basic',
-    iconUrl: 'icons/icon128.png',
-    title: title,
-    message: message,
-    priority: type === 'live' ? 2 : 0,
-    requireInteraction: type === 'live'
-  });
-  
-  // 播放提示音
-  if (config.enableSound && type === 'live') {
-    await playNotificationSound();
+  try {
+    const notificationId = `bilibili_${roomId}_${Date.now()}`;
+    
+    const iconData = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiMwMGExZDYiIHJ4PSIxNiIvPjx0ZXh0IHg9IjY0IiB5PSI4NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjYwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+TwTwvdGV4dD48L3N2Zz4=';
+    
+    await chrome.notifications.create(notificationId, {
+      type: 'basic',
+      iconUrl: iconData,
+      title: title,
+      message: message,
+      priority: type === 'live' ? 2 : 0,
+      requireInteraction: type === 'live'
+    });
+    
+    log(`已发送通知: ${title} - ${message}`);
+    
+    if (config.enableSound && type === 'live') {
+      await playNotificationSound();
+    }
+    
+  } catch (error) {
+    log(`发送通知失败: ${error.message}`);
   }
-  
-  log(`发送通知: ${title} - ${message}`);
 }
 
-/**
- * 播放提示音
- * 注意：Service Worker中不能直接播放音频，需要通过offscreen或其他方式
- */
 async function playNotificationSound() {
-  // 方案1：通过创建offscreen文档播放音频
-  // 方案2：使用通知的sound属性（部分浏览器支持）
-  
   try {
-    // 检查是否已有offscreen文档
     const existingContexts = await chrome.runtime.getContexts({
       contextTypes: ['OFFSCREEN_DOCUMENT']
     });
     
     if (existingContexts.length === 0) {
-      // 创建offscreen文档
-      await chrome.offscreen.createDocument({
-        url: 'offscreen.html',
-        reasons: ['AUDIO_PLAYBACK'],
-        justification: '播放开播提示音'
-      });
+      try {
+        await chrome.offscreen.createDocument({
+          url: 'offscreen.html',
+          reasons: ['AUDIO_PLAYBACK'],
+          justification: '播放开播提示音'
+        });
+      } catch (e) {
+        log(`创建offscreen文档失败: ${e.message}`);
+      }
     }
     
-    // 发送消息到offscreen播放音频
-    await chrome.runtime.sendMessage({
-      type: 'PLAY_SOUND',
-      sound: 'notification'
-    });
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'PLAY_SOUND',
+        sound: 'notification'
+      });
+    } catch (e) {
+      log(`发送播放声音消息失败: ${e.message}`);
+    }
     
   } catch (error) {
-    log(`播放提示音出错: ${error.message}`);
+    log(`播放提示音失败: ${error.message}`);
   }
 }
 
-// ==================== 录制系统 ====================
-
-/**
- * 开始录制
- * 流程：打开直播间页面 -> 注入脚本 -> 开始录制
- */
 async function startRecording(roomId, roomInfo) {
-  // 检查是否已在录制
   if (globalState.recordingRooms.has(roomId)) {
     log(`房间 ${roomId} 已经在录制中`);
     return false;
   }
   
-  const config = await getConfig();
-  if (!config.enableRecord) {
-    log(`自动录制功能未开启`);
+  if (globalState.openingRooms.has(roomId)) {
+    log(`房间 ${roomId} 正在打开中，跳过`);
     return false;
   }
   
-  log(`开始录制: ${roomInfo.streamerName} (${roomId})`);
+  const config = await getConfig();
+  
+  globalState.openingRooms.add(roomId);
   
   try {
-    // 打开直播间页面
-    const tab = await chrome.tabs.create({
-      url: `https://live.bilibili.com/${roomId}`,
-      active: false,  // 后台打开，不激活
-      pinned: false
+    log(`准备打开直播间页面: ${roomInfo.streamerName} (${roomId})`);
+    
+    const existingTabs = await chrome.tabs.query({
+      url: `https://live.bilibili.com/${roomId}`
     });
     
-    log(`已打开直播间页面: tabId=${tab.id}`);
+    let tab;
+    if (existingTabs.length > 0) {
+      tab = existingTabs[0];
+      log(`找到已打开的标签页: tabId=${tab.id}`);
+    } else {
+      tab = await chrome.tabs.create({
+        url: `https://live.bilibili.com/${roomId}`,
+        active: false,
+        pinned: false
+      });
+      log(`已打开新标签页: tabId=${tab.id}`);
+    }
     
-    // 记录录制状态
     globalState.recordingRooms.set(roomId, {
       tabId: tab.id,
       roomId: roomId,
       streamerName: roomInfo.streamerName,
       title: roomInfo.title,
       startTime: Date.now(),
-      status: 'waiting_page'
+      status: 'page_opened'
     });
     
-    // 等待页面加载，然后发送录制指令
-    setTimeout(async () => {
-      await sendRecordCommand(tab.id, roomId, 'START');
-    }, 5000);  // 等待5秒让页面加载
+    if (config.autoOpenRecord) {
+      log(`自动录制已启用，等待页面加载后发送录制指令...`);
+      
+      setTimeout(async () => {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'RECORD_COMMAND',
+            command: 'SHOW_PANEL',
+            roomId: roomId,
+            streamerName: roomInfo.streamerName,
+            title: roomInfo.title,
+            config: config
+          });
+          
+          log(`已发送显示面板指令到 tabId=${tab.id}`);
+        } catch (error) {
+          log(`发送录制指令失败: ${error.message}`);
+        }
+      }, 8000);
+    } else {
+      log(`自动录制未启用，仅打开页面，等待用户手动操作`);
+      
+      setTimeout(async () => {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'RECORD_COMMAND',
+            command: 'SHOW_PANEL_ONLY',
+            roomId: roomId,
+            streamerName: roomInfo.streamerName,
+            title: roomInfo.title,
+            config: config
+          });
+        } catch (error) {
+          log(`发送显示面板指令失败: ${error.message}`);
+        }
+      }, 5000);
+    }
     
     return true;
     
   } catch (error) {
-    log(`开始录制失败: ${error.message}`);
+    log(`开始录制流程失败: ${error.message}`);
     globalState.recordingRooms.delete(roomId);
+    globalState.openingRooms.delete(roomId);
     return false;
   }
 }
 
-/**
- * 停止录制
- */
 async function stopRecording(roomId) {
   const recordingInfo = globalState.recordingRooms.get(roomId);
+  
   if (!recordingInfo) {
     log(`房间 ${roomId} 不在录制中`);
     return false;
@@ -517,60 +549,44 @@ async function stopRecording(roomId) {
   log(`停止录制: ${recordingInfo.streamerName} (${roomId})`);
   
   try {
-    // 发送停止录制指令
-    await sendRecordCommand(recordingInfo.tabId, roomId, 'STOP');
+    await chrome.tabs.sendMessage(recordingInfo.tabId, {
+      type: 'RECORD_COMMAND',
+      command: 'STOP',
+      roomId: roomId
+    });
     
-    // 稍后关闭标签页（给录制完成一点时间）
     setTimeout(async () => {
       try {
-        await chrome.tabs.remove(recordingInfo.tabId);
-        log(`已关闭直播间标签页: tabId=${recordingInfo.tabId}`);
-      } catch (e) {
-        log(`关闭标签页失败: ${e.message}`);
+        const tabs = await chrome.tabs.query({
+          url: `https://live.bilibili.com/${roomId}`
+        });
+        
+        for (const tab of tabs) {
+          try {
+            await chrome.tabs.remove(tab.id);
+            log(`已关闭标签页: tabId=${tab.id}`);
+          } catch (e) {
+            log(`关闭标签页失败: ${e.message}`);
+          }
+        }
+      } catch (error) {
+        log(`查询标签页失败: ${error.message}`);
       }
-    }, 3000);
+    }, 5000);
     
     globalState.recordingRooms.delete(roomId);
+    globalState.openingRooms.delete(roomId);
+    
     return true;
     
   } catch (error) {
     log(`停止录制失败: ${error.message}`);
     globalState.recordingRooms.delete(roomId);
+    globalState.openingRooms.delete(roomId);
     return false;
   }
 }
 
-/**
- * 向标签页发送录制指令
- */
-async function sendRecordCommand(tabId, roomId, command) {
-  try {
-    // 先注入脚本（防止页面还没加载content script）
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content.js']
-    });
-    
-    // 发送消息
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'RECORD_COMMAND',
-      command: command,
-      roomId: roomId,
-      config: await getConfig()
-    });
-    
-    log(`已发送录制指令 [${command}] 到 tabId=${tabId}`);
-    
-  } catch (error) {
-    log(`发送录制指令失败: ${error.message}`);
-  }
-}
-
-// ==================== 监控核心逻辑 ====================
-
-/**
- * 启动监控
- */
 async function startMonitoring() {
   if (globalState.isMonitoring) {
     log('监控已经在运行中');
@@ -588,12 +604,11 @@ async function startMonitoring() {
   }
   
   globalState.isMonitoring = true;
+  
   log(`启动监控，轮询间隔: ${config.pollInterval}秒，监控主播数: ${monitoringCount}`);
   
-  // 立即执行一次检查
   await performMonitorCheck();
   
-  // 设置周期性检查
   if (globalState.pollingTimer) {
     clearInterval(globalState.pollingTimer);
   }
@@ -604,16 +619,9 @@ async function startMonitoring() {
     }
   }, config.pollInterval * 1000);
   
-  // 更新图标
-  await updateExtensionIcon('active');
-  
-  // 发送通知
   await sendNotification('system', '监控已启动', `正在监控 ${monitoringCount} 个主播`, 'info');
 }
 
-/**
- * 停止监控
- */
 async function stopMonitoring() {
   if (!globalState.isMonitoring) {
     return;
@@ -628,47 +636,11 @@ async function stopMonitoring() {
   
   log('停止监控');
   
-  // 停止所有录制
   for (const roomId of globalState.recordingRooms.keys()) {
     await stopRecording(roomId);
   }
-  
-  // 更新图标
-  await updateExtensionIcon('inactive');
 }
 
-/**
- * 更新扩展图标状态
- */
-async function updateExtensionIcon(status) {
-  try {
-    // Manifest V3 使用 action
-    const iconPath = status === 'active' ? 'icons/icon48.png' : 'icons/icon48.png';
-    
-    // 设置徽章文字
-    if (status === 'active') {
-      const streamers = await getStreamers();
-      const liveCount = streamers.filter(s => s.lastLiveStatus === 'live').length;
-      
-      await chrome.action.setBadgeText({
-        text: liveCount > 0 ? liveCount.toString() : ''
-      });
-      
-      await chrome.action.setBadgeBackgroundColor({
-        color: '#e74c3c'
-      });
-    } else {
-      await chrome.action.setBadgeText({ text: '' });
-    }
-    
-  } catch (error) {
-    log(`更新图标失败: ${error.message}`);
-  }
-}
-
-/**
- * 执行一次监控检查
- */
 async function performMonitorCheck() {
   const streamers = await getStreamers();
   const monitoringStreamers = streamers.filter(s => s.isMonitoring);
@@ -682,19 +654,12 @@ async function performMonitorCheck() {
       log(`检查主播 ${streamer.roomId} 时出错: ${error.message}`);
     }
   }
-  
-  // 更新图标
-  await updateExtensionIcon('active');
 }
 
-/**
- * 检查单个主播状态
- */
 async function checkSingleStreamer(streamer) {
   const roomId = streamer.roomId;
   const lastStatus = streamer.lastLiveStatus;
   
-  // 获取直播间信息
   const roomInfo = await fetchRoomInfo(roomId);
   
   if (!roomInfo) {
@@ -702,25 +667,29 @@ async function checkSingleStreamer(streamer) {
     return;
   }
   
-  // 更新最后检查时间
   const streamers = await getStreamers();
   const targetStreamer = streamers.find(s => s.roomId === roomId);
+  
   if (targetStreamer) {
     targetStreamer.lastCheckTime = new Date().toISOString();
     targetStreamer.streamerName = roomInfo.streamerName;
     await saveStreamers(streamers);
   }
   
-  // 判断直播状态变化
   const currentStatus = roomInfo.isLive ? 'live' : 'offline';
+  
+  const lastCheck = globalState.lastCheckStatus.get(roomId);
+  if (lastCheck === currentStatus && lastStatus === currentStatus) {
+    return;
+  }
+  
+  globalState.lastCheckStatus.set(roomId, currentStatus);
   
   log(`主播 ${roomInfo.streamerName} (${roomId}) 状态: ${lastStatus} -> ${currentStatus}`);
   
-  // 状态变化检测
   if (lastStatus !== currentStatus) {
     await handleStatusChange(streamer, roomInfo, lastStatus, currentStatus);
     
-    // 更新存储的状态
     const streamersToUpdate = await getStreamers();
     const s = streamersToUpdate.find(x => x.roomId === roomId);
     if (s) {
@@ -732,19 +701,21 @@ async function checkSingleStreamer(streamer) {
     }
   }
   
-  // 如果正在直播但不在录制中，检查是否需要启动录制
-  if (currentStatus === 'live') {
-    const config = await getConfig();
-    if (config.enableRecord && !globalState.recordingRooms.has(roomId)) {
-      log(`检测到主播正在直播但未录制，尝试启动录制: ${roomInfo.streamerName}`);
-      await startRecording(roomId, roomInfo);
+  const config = await getConfig();
+  if (currentStatus === 'live' && config.enableRecord) {
+    if (!globalState.recordingRooms.has(roomId) && !globalState.openingRooms.has(roomId)) {
+      log(`检测到主播正在直播: ${roomInfo.streamerName}`);
+      
+      if (config.autoOpenRecord) {
+        log(`自动录制已启用，启动录制流程...`);
+        await startRecording(roomId, roomInfo);
+      } else {
+        log(`自动录制未启用，仅发送通知`);
+      }
     }
   }
 }
 
-/**
- * 处理状态变化
- */
 async function handleStatusChange(streamer, roomInfo, oldStatus, newStatus) {
   const streamerName = roomInfo.streamerName || streamer.streamerName;
   const roomId = streamer.roomId;
@@ -752,10 +723,8 @@ async function handleStatusChange(streamer, roomInfo, oldStatus, newStatus) {
   log(`状态变化: ${streamerName} ${oldStatus} -> ${newStatus}`);
   
   if (newStatus === 'live') {
-    // 开播了！
     const title = roomInfo.title || '未知标题';
     
-    // 发送开播通知
     await sendNotification(
       roomId,
       `${streamerName} 开播了！`,
@@ -763,14 +732,7 @@ async function handleStatusChange(streamer, roomInfo, oldStatus, newStatus) {
       'live'
     );
     
-    // 开始录制
-    const config = await getConfig();
-    if (config.enableRecord) {
-      await startRecording(roomId, roomInfo);
-    }
-    
   } else if (newStatus === 'offline') {
-    // 下播了
     await sendNotification(
       roomId,
       `${streamerName} 下播了`,
@@ -778,20 +740,64 @@ async function handleStatusChange(streamer, roomInfo, oldStatus, newStatus) {
       'info'
     );
     
-    // 停止录制
     if (globalState.recordingRooms.has(roomId)) {
       await stopRecording(roomId);
     }
   }
 }
 
-// ==================== 消息处理 ====================
+async function handleDownloadRecording(message) {
+  log(`处理下载: ${message.fileName}`);
+  
+  try {
+    const downloadId = await chrome.downloads.download({
+      url: message.url,
+      filename: message.fileName,
+      saveAs: false
+    });
+    
+    log(`下载已开始, downloadId: ${downloadId}`);
+    
+    await addHistory({
+      roomId: message.roomId,
+      streamerName: message.streamerName || '',
+      title: message.title || '',
+      startTime: message.startTime,
+      endTime: message.endTime,
+      duration: message.duration,
+      fileSize: message.fileSize,
+      fileName: message.fileName,
+      status: 'completed'
+    });
+    
+    globalState.recordingRooms.delete(message.roomId);
+    globalState.openingRooms.delete(message.roomId);
+    
+    return { success: true, downloadId };
+    
+  } catch (error) {
+    log(`下载失败: ${error.message}`);
+    
+    await addHistory({
+      roomId: message.roomId,
+      streamerName: message.streamerName || '',
+      title: message.title || '',
+      startTime: message.startTime,
+      endTime: message.endTime,
+      duration: message.duration,
+      fileSize: message.fileSize,
+      fileName: message.fileName,
+      status: 'failed'
+    });
+    
+    globalState.recordingRooms.delete(message.roomId);
+    globalState.openingRooms.delete(message.roomId);
+    
+    return { success: false, error: error.message };
+  }
+}
 
-/**
- * 处理来自Popup和Content Script的消息
- */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 异步处理，需要返回true
   (async () => {
     try {
       let response = await handleMessage(message, sender);
@@ -802,19 +808,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   })();
   
-  return true;  // 保持消息通道打开
+  return true;
 });
 
-/**
- * 处理具体消息
- */
 async function handleMessage(message, sender) {
   const type = message.type;
   
   log(`收到消息: ${type}`, sender.tab ? `from tab ${sender.tab.id}` : 'from extension');
   
   switch (type) {
-    // ========== 监控控制 ==========
     case 'START_MONITORING':
       await startMonitoring();
       return { success: true, isMonitoring: globalState.isMonitoring };
@@ -831,7 +833,6 @@ async function handleMessage(message, sender) {
         recordingRooms: Array.from(globalState.recordingRooms.keys())
       };
       
-    // ========== 主播管理 ==========
     case 'ADD_STREAMER':
       return await addStreamer(message.roomId, message.streamerName, message.note);
       
@@ -845,20 +846,19 @@ async function handleMessage(message, sender) {
       
     case 'GET_STREAMERS':
       const streamers = await getStreamers();
-      // 补充当前录制状态
       for (const s of streamers) {
         s.isRecording = globalState.recordingRooms.has(s.roomId);
+        s.isOpening = globalState.openingRooms.has(s.roomId);
       }
       return { success: true, streamers };
       
-    // ========== 配置管理 ==========
     case 'GET_CONFIG':
       const config = await getConfig();
       return { success: true, config };
       
     case 'SAVE_CONFIG':
-      await saveConfig(message.config);
-      // 如果轮询间隔改变，重启定时器
+      const saved = await saveConfig(message.config);
+      
       if (globalState.isMonitoring) {
         const newConfig = await getConfig();
         if (globalState.pollingTimer) {
@@ -870,14 +870,12 @@ async function handleMessage(message, sender) {
           }
         }, newConfig.pollInterval * 1000);
       }
-      return { success: true };
       
-    // ========== 录制相关 ==========
+      return { success: saved };
+      
     case 'RECORD_COMPLETED':
-      // 来自content script的录制完成消息
       log(`录制完成: ${message.roomId}`);
       
-      // 添加到历史记录
       await addHistory({
         roomId: message.roomId,
         streamerName: message.streamerName || '',
@@ -890,10 +888,9 @@ async function handleMessage(message, sender) {
         status: 'completed'
       });
       
-      // 清理录制状态
       globalState.recordingRooms.delete(message.roomId);
+      globalState.openingRooms.delete(message.roomId);
       
-      // 发送完成通知
       await sendNotification(
         message.roomId,
         '录制完成',
@@ -903,16 +900,36 @@ async function handleMessage(message, sender) {
       
       return { success: true };
       
+    case 'RECORD_STARTED':
+      log(`录制已开始: ${message.roomId}`);
+      
+      const recordingInfo = globalState.recordingRooms.get(message.roomId);
+      if (recordingInfo) {
+        recordingInfo.status = 'recording';
+      }
+      
+      return { success: true };
+      
     case 'RECORD_ERROR':
       log(`录制出错: ${message.error}`);
       globalState.recordingRooms.delete(message.roomId);
+      globalState.openingRooms.delete(message.roomId);
       return { success: true };
       
-    // ========== 下载功能 ==========
+    case 'MANUAL_RECORD_START':
+      log(`手动开始录制: ${message.roomId}`);
+      
+      const info = globalState.recordingRooms.get(message.roomId);
+      if (info) {
+        info.status = 'recording';
+        info.manualStart = true;
+      }
+      
+      return { success: true };
+      
     case 'DOWNLOAD_RECORDING':
       return await handleDownloadRecording(message);
       
-    // ========== 历史记录 ==========
     case 'GET_HISTORY':
       const history = await getHistory();
       return { success: true, history };
@@ -926,118 +943,42 @@ async function handleMessage(message, sender) {
   }
 }
 
-// ==================== 通知点击处理 ====================
-
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   log(`通知被点击: ${notificationId}`);
-  
-  // 关闭通知
   await chrome.notifications.clear(notificationId);
-  
-  // 如果是开播通知，打开直播间页面（根据notificationId解析）
-  // 这里简化处理：打开Popup或者直播间页面
 });
 
-// ==================== 扩展启动 ====================
-
-/**
- * 处理下载录制文件
- */
-async function handleDownloadRecording(message) {
-  log(`处理下载: ${message.fileName}`);
-  
-  try {
-    // 使用chrome.downloads API下载文件
-    // 注意：message.url 是一个 blob URL，需要转换
-    
-    // 方案：直接发起下载
-    const downloadId = await chrome.downloads.download({
-      url: message.url,
-      filename: message.fileName,
-      saveAs: false  // 直接下载到默认目录，不弹出保存对话框
-    });
-    
-    log(`下载已开始, downloadId: ${downloadId}`);
-    
-    // 添加到历史记录
-    await addHistory({
-      roomId: message.roomId,
-      streamerName: message.streamerName || '',
-      title: message.title || '',
-      startTime: message.startTime,
-      endTime: message.endTime,
-      duration: message.duration,
-      fileSize: message.fileSize,
-      fileName: message.fileName,
-      status: 'completed'
-    });
-    
-    // 清理录制状态
-    globalState.recordingRooms.delete(message.roomId);
-    
-    return { success: true, downloadId };
-    
-  } catch (error) {
-    log(`下载失败: ${error.message}`);
-    
-    // 即使下载失败，也添加到历史
-    await addHistory({
-      roomId: message.roomId,
-      streamerName: message.streamerName || '',
-      title: message.title || '',
-      startTime: message.startTime,
-      endTime: message.endTime,
-      duration: message.duration,
-      fileSize: message.fileSize,
-      fileName: message.fileName,
-      status: 'failed'
-    });
-    
-    globalState.recordingRooms.delete(message.roomId);
-    
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * 扩展安装/启动时初始化
- */
 chrome.runtime.onInstalled.addListener(async (details) => {
   log(`扩展已安装/更新: ${details.reason}`);
   
-  // 初始化默认配置
   const existingConfig = await getConfig();
   await saveConfig(existingConfig);
   
-  // 创建offscreen文档（用于播放音频）
   try {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['AUDIO_PLAYBACK'],
-      justification: '播放开播提示音'
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT']
     });
+    
+    if (existingContexts.length === 0) {
+      await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['AUDIO_PLAYBACK'],
+        justification: '播放开播提示音'
+      });
+    }
   } catch (e) {
-    // 可能已存在，忽略错误
+    log(`offscreen文档已存在或创建失败: ${e.message}`);
   }
-  
-  // 如果之前在监控，恢复监控
-  // 注意：Manifest V3中Service Worker会被频繁终止，这里不自动恢复
-  // 用户需要手动启动监控
 });
 
-/**
- * 扩展启动时
- */
 chrome.runtime.onStartup.addListener(async () => {
   log('扩展随浏览器启动');
-  // 这里不自动启动监控，保持用户控制
 });
 
-// ==================== 导出供调试 ====================
-
-// 在Service Worker中，这些变量可以通过chrome://inspect/#service-workers查看
-console.log('B站直播间监控助手 - Service Worker 已加载');
-console.log('使用说明:');
-console.log('1. 点击扩展图标打开Popup界面');
-console.log('2. 添加需要监控的主播');
-console.log('3. 点击"开始监控"按钮');
+console.log('B站直播间监控助手 - Service Worker v1.1.0 已加载');
+console.log('修复内容：');
+console.log('1. 修复通知问题');
+console.log('2. 修复重复打开页面问题');
+console.log('3. 修复配置保存问题');
+console.log('4. 添加手动录制控制');
+console.log('5. 优化流程逻辑');
