@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>单样本检测</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b bg-white">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div>
+          <p class="text-sm text-slate-500">模块一：单样本检测</p>
+          <h1 class="text-2xl font-semibold">图文联合审核工作台</h1>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-600">在线</span>
+          <span class="rounded-full bg-slate-100 px-3 py-1">日均 4.2k</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1.1fr_1fr]">
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">图文输入</h2>
+            <span class="text-xs text-slate-400">单样本检测</span>
+          </div>
+          <div class="mt-4 grid gap-4">
+            <div class="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-6 text-center">
+              <i class="fa-regular fa-image text-2xl text-indigo-500"></i>
+              <p class="mt-2 text-sm text-slate-500">拖拽图片到此处或点击上传（PNG/JPG）</p>
+              <button class="mt-3 rounded-full bg-white px-4 py-2 text-sm text-indigo-600 shadow">上传图片</button>
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">文本输入</label>
+              <textarea class="mt-2 h-32 w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm" placeholder="输入文本或通过 OCR 自动识别..."></textarea>
+            </div>
+            <div class="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+              <div>
+                <p class="text-sm font-medium">自动 OCR 识别</p>
+                <p class="text-xs text-slate-400">识别图片中的文本并合并输入</p>
+              </div>
+              <label class="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" class="peer sr-only" checked />
+                <div class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-indigo-500 peer-checked:after:translate-x-5"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">算法与推理配置</h2>
+            <span class="text-xs text-slate-400">核心模块</span>
+          </div>
+          <div class="mt-4 space-y-4">
+            <div>
+              <label class="text-sm text-slate-500">算法选择</label>
+              <select id="algoSelect" class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <option value="cf-dmw">算法一：基于动态权重的 CF-DMW</option>
+                <option value="cf-df">算法二：基于扩散净化的 CF-DF</option>
+              </select>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs text-slate-400">推理设备</p>
+                <p class="text-sm font-semibold">GPU / A100</p>
+              </div>
+              <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs text-slate-400">模型版本</p>
+                <p class="text-sm font-semibold">MoRE-MAMI v2.1</p>
+              </div>
+            </div>
+            <button class="w-full rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow">
+              <i class="fa-solid fa-play mr-2"></i>开始检测
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">检测结果</h2>
+            <span id="algoLabel" class="rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-600">CF-DMW</span>
+          </div>
+          <div class="mt-4 flex items-center gap-4">
+            <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+            </div>
+            <div>
+              <p class="text-sm text-slate-500">风险等级</p>
+              <p class="text-xl font-semibold text-rose-600">疑似仇恨 · 85%</p>
+              <p class="text-xs text-slate-400">模型建议：优先人工复核</p>
+            </div>
+          </div>
+          <div class="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <p class="font-medium">判定摘要</p>
+            <p class="mt-2 text-sm">文本具有强烈攻击倾向，视觉内容强化负面语义，综合风险偏高。</p>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">可解释性分析</h2>
+          <p class="mt-2 text-sm text-slate-500">根据所选算法动态更新解释性图表。</p>
+          <div id="dmwSection" class="mt-4 space-y-4">
+            <div class="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-700">
+              模型判断主要依据文本模态（权重更高），建议重点复核文本内容。
+            </div>
+            <canvas id="weightChart" height="140"></canvas>
+          </div>
+          <div id="dfSection" class="mt-4 hidden space-y-4">
+            <div class="rounded-2xl bg-sky-50 p-4 text-sm text-sky-700">
+              扩散净化后置信度下降，说明噪声对判断有明显影响。
+            </div>
+            <canvas id="dfChart" height="140"></canvas>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">推理日志</h2>
+          <div class="mt-4 grid gap-3 text-xs text-slate-500">
+            <div class="flex items-center justify-between rounded-2xl bg-slate-50 p-3">
+              <span>CLIP 特征提取</span>
+              <span>0.48s</span>
+            </div>
+            <div class="flex items-center justify-between rounded-2xl bg-slate-50 p-3">
+              <span>多模态融合</span>
+              <span>0.32s</span>
+            </div>
+            <div class="flex items-center justify-between rounded-2xl bg-slate-50 p-3">
+              <span>大模型推理</span>
+              <span>0.41s</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const algoSelect = document.getElementById("algoSelect");
+    const algoLabel = document.getElementById("algoLabel");
+    const dmwSection = document.getElementById("dmwSection");
+    const dfSection = document.getElementById("dfSection");
+
+    const weightChart = new Chart(document.getElementById("weightChart"), {
+      type: "bar",
+      data: {
+        labels: ["文本模态", "图像模态"],
+        datasets: [
+          {
+            label: "动态权重",
+            data: [0.9, 0.1],
+            backgroundColor: ["#6366f1", "#93c5fd"],
+            borderRadius: 12
+          }
+        ]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 1 } }
+      }
+    });
+
+    const dfChart = new Chart(document.getElementById("dfChart"), {
+      type: "line",
+      data: {
+        labels: ["净化前", "净化后"],
+        datasets: [
+          {
+            label: "仇恨置信度",
+            data: [0.86, 0.62],
+            borderColor: "#38bdf8",
+            backgroundColor: "rgba(56, 189, 248, 0.2)",
+            tension: 0.35,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 1 } }
+      }
+    });
+
+    const updateAlgoView = () => {
+      if (algoSelect.value === "cf-dmw") {
+        dmwSection.classList.remove("hidden");
+        dfSection.classList.add("hidden");
+        algoLabel.textContent = "CF-DMW";
+      } else {
+        dmwSection.classList.add("hidden");
+        dfSection.classList.remove("hidden");
+        algoLabel.textContent = "CF-DF";
+      }
+    };
+
+    algoSelect.addEventListener("change", updateAlgoView);
+    updateAlgoView();
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多模态仇恨言论检测平台 - 首页</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="sticky top-0 z-10 border-b bg-white/80 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 text-white shadow">
+            <i class="fa-solid fa-shield-heart"></i>
+          </div>
+          <div>
+            <p class="text-lg font-semibold">Lubo 多模态仇恨言论检测</p>
+            <p class="text-xs text-slate-500">文本 + 图像 | 可信审查 | 亮色系体验</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">系统运行中</span>
+          <button class="rounded-full bg-indigo-500 px-4 py-2 text-white shadow">进入检测</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl space-y-12 px-6 py-10">
+      <section class="grid gap-8 lg:grid-cols-2">
+        <div class="space-y-6">
+          <p class="text-sm font-medium text-indigo-500">产品概览</p>
+          <h1 class="text-4xl font-semibold leading-tight">面向社交平台的多模态仇恨言论检测原型</h1>
+          <p class="text-base text-slate-600">
+            支持单样本与批量审核，提供动态权重与扩散净化两种算法的可解释性视图，
+            帮助审核员快速定位高风险内容并理解模型决策依据。
+          </p>
+          <div class="flex flex-wrap gap-4">
+            <button class="rounded-xl bg-indigo-500 px-5 py-3 text-white shadow">
+              <i class="fa-solid fa-bolt mr-2"></i>快速单样本检测
+            </button>
+            <button class="rounded-xl border border-indigo-200 bg-white px-5 py-3 text-indigo-600">
+              <i class="fa-solid fa-layer-group mr-2"></i>批量内容审核
+            </button>
+          </div>
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl bg-white p-4 shadow">
+              <p class="text-xs text-slate-400">平均响应</p>
+              <p class="text-xl font-semibold">1.2s</p>
+            </div>
+            <div class="rounded-2xl bg-white p-4 shadow">
+              <p class="text-xs text-slate-400">昨日处理</p>
+              <p class="text-xl font-semibold">12,482条</p>
+            </div>
+            <div class="rounded-2xl bg-white p-4 shadow">
+              <p class="text-xs text-slate-400">准确率</p>
+              <p class="text-xl font-semibold">93.6%</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid gap-4">
+          <div class="rounded-3xl bg-white p-6 shadow-lg">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-medium text-slate-500">实时风险面板</p>
+              <span class="rounded-full bg-rose-50 px-3 py-1 text-xs text-rose-600">高风险 8%</span>
+            </div>
+            <div class="mt-6 space-y-4">
+              <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold">疑似仇恨内容</p>
+                    <p class="text-xs text-slate-500">图文融合风险评分 0.87</p>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold">安全内容</p>
+                    <p class="text-xs text-slate-500">图文融合风险评分 0.12</p>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-2xl bg-indigo-50 p-4">
+                <p class="text-xs text-indigo-500">策略建议</p>
+                <p class="text-sm text-indigo-700">优先复核高权重文本样本，可节省 28% 人力。</p>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-3xl bg-gradient-to-br from-indigo-100 to-sky-100 p-6">
+            <p class="text-sm font-medium text-indigo-700">用户体验要点</p>
+            <ul class="mt-4 space-y-3 text-sm text-indigo-800">
+              <li class="flex gap-2"><i class="fa-solid fa-circle-check mt-1"></i>输入流程一步到位：上传图片 + 输入文本 + OCR 一键启用。</li>
+              <li class="flex gap-2"><i class="fa-solid fa-circle-check mt-1"></i>算法解释与结果同屏展示，审核决策更可控。</li>
+              <li class="flex gap-2"><i class="fa-solid fa-circle-check mt-1"></i>批量检测强调“风险分层”，减少人工二次筛选。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid gap-6 md:grid-cols-2">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <p class="text-sm font-semibold text-slate-500">信息架构</p>
+          <div class="mt-4 space-y-3 text-sm text-slate-600">
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>单样本检测</span>
+              <span class="text-xs text-slate-400">文本 + 图片 + OCR</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>批量检测</span>
+              <span class="text-xs text-slate-400">CSV / JSON</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>模型权重管理</span>
+              <span class="text-xs text-slate-400">上传 & 校验</span>
+            </div>
+            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>审查报告</span>
+              <span class="text-xs text-slate-400">可视化 + 导出</span>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <p class="text-sm font-semibold text-slate-500">核心交互流程</p>
+          <ol class="mt-4 space-y-4 text-sm text-slate-600">
+            <li class="flex gap-3">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">1</span>
+              <div>上传图文内容，选择算法与 OCR 选项。</div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">2</span>
+              <div>后台调用 CLIP + 大模型推理，生成仇恨概率。</div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">3</span>
+              <div>前端展示风险等级、解释图表与模型建议。</div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">4</span>
+              <div>批量模式自动生成风险分层与复核列表。</div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="grid gap-6 lg:grid-cols-3">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center gap-3">
+            <div class="rounded-xl bg-indigo-100 p-3 text-indigo-600"><i class="fa-solid fa-sliders"></i></div>
+            <p class="text-lg font-semibold">算法一：CF-DMW</p>
+          </div>
+          <p class="mt-4 text-sm text-slate-600">动态权重协同机制，突出当前样本对文字与图像的贡献比例。</p>
+          <div class="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">可视化：模态权重饼图 / 条形图</div>
+        </div>
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center gap-3">
+            <div class="rounded-xl bg-sky-100 p-3 text-sky-600"><i class="fa-solid fa-wind"></i></div>
+            <p class="text-lg font-semibold">算法二：CF-DF</p>
+          </div>
+          <p class="mt-4 text-sm text-slate-600">扩散净化策略，展示净化前后置信度变化。</p>
+          <div class="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">可视化：置信度对比折线 / 柱状图</div>
+        </div>
+        <div class="rounded-3xl bg-gradient-to-br from-emerald-100 to-sky-100 p-6">
+          <p class="text-lg font-semibold text-emerald-800">亮色系视觉规范</p>
+          <ul class="mt-4 space-y-2 text-sm text-emerald-700">
+            <li>✅ 低饱和背景 + 高对比按钮</li>
+            <li>✅ 风险色彩统一（红/绿）</li>
+            <li>✅ 信息层级清晰，卡片化布局</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
