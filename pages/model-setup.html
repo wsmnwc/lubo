@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模型权重管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b bg-white">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div>
+          <p class="text-sm text-slate-500">模型管理中心</p>
+          <h1 class="text-2xl font-semibold">权重上传与运行状态</h1>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-600">GPU Ready</span>
+          <span class="rounded-full bg-slate-100 px-3 py-1">2 个模型已加载</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">算法一：CF-DMW 权重</h2>
+            <span class="text-xs text-slate-400">MoRE-MAMI_best.pt</span>
+          </div>
+          <div class="mt-4 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-6 text-center">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500"></i>
+            <p class="mt-2 text-sm text-slate-500">上传 CF-DMW 权重文件 (.pt)</p>
+            <button class="mt-3 rounded-full bg-white px-4 py-2 text-sm text-indigo-600 shadow">上传权重</button>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-3">
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">大小</p>
+              <p class="text-sm font-semibold">412MB</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">校验状态</p>
+              <p class="text-sm font-semibold text-emerald-600">已通过</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">更新时间</p>
+              <p class="text-sm font-semibold">2026-06-01</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">算法二：CF-DF 权重</h2>
+            <span class="text-xs text-slate-400">CFDF_MAMI_best.pt</span>
+          </div>
+          <div class="mt-4 rounded-2xl border border-dashed border-sky-200 bg-sky-50/40 p-6 text-center">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-500"></i>
+            <p class="mt-2 text-sm text-slate-500">上传 CF-DF 权重文件 (.pt)</p>
+            <button class="mt-3 rounded-full bg-white px-4 py-2 text-sm text-sky-600 shadow">上传权重</button>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-3">
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">大小</p>
+              <p class="text-sm font-semibold">398MB</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">校验状态</p>
+              <p class="text-sm font-semibold text-amber-600">待验证</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">更新时间</p>
+              <p class="text-sm font-semibold">2026-06-05</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">运行环境</h2>
+          <div class="mt-4 space-y-4 text-sm text-slate-600">
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">推理设备</p>
+              <p class="text-sm font-semibold">CUDA:0 (A100)</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">服务端口</p>
+              <p class="text-sm font-semibold">http://localhost:8000</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">CLIP 特征模型</p>
+              <p class="text-sm font-semibold">ViT-L/14</p>
+            </div>
+            <button class="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow">
+              <i class="fa-solid fa-circle-check mr-2"></i>验证权重与设备
+            </button>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-gradient-to-br from-emerald-100 to-sky-100 p-6">
+          <h2 class="text-lg font-semibold text-emerald-800">部署提示</h2>
+          <ul class="mt-4 space-y-2 text-sm text-emerald-700">
+            <li>✅ 权重上传后自动生成哈希校验。</li>
+            <li>✅ 支持热更新，不影响前端使用。</li>
+            <li>✅ 与前端 API 通过统一路由对接。</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

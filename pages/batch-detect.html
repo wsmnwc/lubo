@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>批量检测</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b bg-white">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div>
+          <p class="text-sm text-slate-500">模块一：批量检测</p>
+          <h1 class="text-2xl font-semibold">批量审核与风险分层</h1>
+        </div>
+        <div class="flex gap-2 text-sm text-slate-600">
+          <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-600">自动分析</span>
+          <span class="rounded-full bg-slate-100 px-3 py-1">CSV / JSON</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1fr_1.1fr]">
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">上传批量数据</h2>
+            <span class="text-xs text-slate-400">支持 CSV / JSON</span>
+          </div>
+          <div class="mt-4 rounded-2xl border border-dashed border-sky-200 bg-sky-50/50 p-6 text-center">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-sky-500"></i>
+            <p class="mt-2 text-sm text-slate-500">拖拽文件到此处或选择文件上传</p>
+            <button class="mt-3 rounded-full bg-white px-4 py-2 text-sm text-sky-600 shadow">选择文件</button>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <div>
+              <label class="text-sm text-slate-500">算法选择</label>
+              <select class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <option>算法一：CF-DMW</option>
+                <option>算法二：CF-DF</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">审核策略</label>
+              <select class="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                <option>高风险优先复核</option>
+                <option>全量自动通过</option>
+                <option>人工复核比例 30%</option>
+              </select>
+            </div>
+          </div>
+          <button class="mt-4 w-full rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white shadow">
+            <i class="fa-solid fa-rocket mr-2"></i>启动批量检测
+          </button>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">样本预览</h2>
+          <div class="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="px-4 py-3">编号</th>
+                  <th class="px-4 py-3">文本摘要</th>
+                  <th class="px-4 py-3">图像</th>
+                  <th class="px-4 py-3">状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t">
+                  <td class="px-4 py-3">#A1023</td>
+                  <td class="px-4 py-3">带有攻击性词语的对话片段</td>
+                  <td class="px-4 py-3 text-slate-400">image_1.jpg</td>
+                  <td class="px-4 py-3 text-rose-500">高风险</td>
+                </tr>
+                <tr class="border-t">
+                  <td class="px-4 py-3">#A1024</td>
+                  <td class="px-4 py-3">情绪激烈但无明确仇恨词</td>
+                  <td class="px-4 py-3 text-slate-400">image_2.jpg</td>
+                  <td class="px-4 py-3 text-amber-500">中风险</td>
+                </tr>
+                <tr class="border-t">
+                  <td class="px-4 py-3">#A1025</td>
+                  <td class="px-4 py-3">普通娱乐内容</td>
+                  <td class="px-4 py-3 text-slate-400">image_3.jpg</td>
+                  <td class="px-4 py-3 text-emerald-500">安全</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-6">
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">批量检测概览</h2>
+          <div class="mt-4 grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl bg-slate-50 p-4">
+              <p class="text-xs text-slate-400">总样本</p>
+              <p class="text-xl font-semibold">2,400</p>
+            </div>
+            <div class="rounded-2xl bg-rose-50 p-4">
+              <p class="text-xs text-rose-400">高风险</p>
+              <p class="text-xl font-semibold text-rose-600">184</p>
+            </div>
+            <div class="rounded-2xl bg-emerald-50 p-4">
+              <p class="text-xs text-emerald-400">安全</p>
+              <p class="text-xl font-semibold text-emerald-600">1,932</p>
+            </div>
+          </div>
+          <div class="mt-6">
+            <canvas id="batchChart" height="180"></canvas>
+          </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow">
+          <h2 class="text-lg font-semibold">结果分层与导出</h2>
+          <div class="mt-4 grid gap-4">
+            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+              高风险样本已自动归档为“优先复核”，支持导出 Excel 报告。
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button class="rounded-full bg-indigo-500 px-4 py-2 text-sm text-white shadow">下载报告</button>
+              <button class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">同步到工单</button>
+              <button class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">发送复核提醒</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    new Chart(document.getElementById("batchChart"), {
+      type: "bar",
+      data: {
+        labels: ["安全", "中风险", "高风险"],
+        datasets: [
+          {
+            label: "样本数量",
+            data: [1932, 284, 184],
+            backgroundColor: ["#34d399", "#fbbf24", "#f87171"],
+            borderRadius: 12
+          }
+        ]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  </script>
+</body>
+</html>

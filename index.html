@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lubo 多模态仇恨言论检测 - 原型总览</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto max-w-6xl px-6 py-10">
+    <div class="rounded-3xl bg-white p-6 shadow">
+      <h1 class="text-2xl font-semibold">原型总览（iframe 平铺展示）</h1>
+      <p class="mt-2 text-sm text-slate-500">所有页面均为独立 HTML 文件，通过 iframe 平铺在此页面中。</p>
+    </div>
+
+    <section class="mt-8 space-y-6">
+      <div class="rounded-3xl bg-white p-4 shadow">
+        <p class="mb-3 text-sm font-semibold text-slate-600">首页 / 产品概览</p>
+        <iframe src="pages/home.html" class="h-[820px] w-full rounded-2xl border border-slate-200"></iframe>
+      </div>
+      <div class="rounded-3xl bg-white p-4 shadow">
+        <p class="mb-3 text-sm font-semibold text-slate-600">单样本检测页面</p>
+        <iframe src="pages/single-detect.html" class="h-[900px] w-full rounded-2xl border border-slate-200"></iframe>
+      </div>
+      <div class="rounded-3xl bg-white p-4 shadow">
+        <p class="mb-3 text-sm font-semibold text-slate-600">批量检测页面</p>
+        <iframe src="pages/batch-detect.html" class="h-[820px] w-full rounded-2xl border border-slate-200"></iframe>
+      </div>
+      <div class="rounded-3xl bg-white p-4 shadow">
+        <p class="mb-3 text-sm font-semibold text-slate-600">模型权重管理页面</p>
+        <iframe src="pages/model-setup.html" class="h-[820px] w-full rounded-2xl border border-slate-200"></iframe>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
